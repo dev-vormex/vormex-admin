@@ -11,9 +11,12 @@ import {
 import {
   AlertCircle,
   CheckCircle2,
+  CreditCard,
   Crown,
+  IndianRupee,
   Loader2,
   MessageSquare,
+  Receipt,
   RefreshCw,
   Search,
   Send,
@@ -40,7 +43,7 @@ import {
 import { formatDateTime, formatRelativeTime } from '@/lib/utils';
 
 type UserFilter = 'all' | 'premium' | 'overrides';
-type EventFilter = 'all' | 'clicked' | 'failed' | 'success';
+type EventFilter = 'all' | 'payments' | 'clicked' | 'failed' | 'success';
 
 type UserDraft = {
   premiumPriceOverride: string;
@@ -73,8 +76,9 @@ const statCards: Array<{
   tone: string;
 }> = [
   { key: 'activePremiumUsers', label: 'Premium users', icon: Crown, tone: 'text-amber-300' },
-  { key: 'customPriceUsers', label: 'Custom prices', icon: Sparkles, tone: 'text-cyan-300' },
-  { key: 'clickCount', label: 'Get Premium clicks', icon: UserCheck, tone: 'text-emerald-300' },
+  { key: 'paidPremiumUsers', label: 'Paid subscriptions', icon: CreditCard, tone: 'text-emerald-300' },
+  { key: 'paymentCount', label: 'Payments captured', icon: Receipt, tone: 'text-cyan-300' },
+  { key: 'clickCount', label: 'Get Premium clicks', icon: UserCheck, tone: 'text-sky-300' },
   { key: 'failureCount', label: 'Checkout failures', icon: AlertCircle, tone: 'text-rose-300' },
 ];
 
@@ -560,7 +564,7 @@ export default function PremiumDashboardPage() {
         </div>
       )}
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         {statCards.map((card) => (
           <div
             key={card.key}
@@ -576,6 +580,69 @@ export default function PremiumDashboardPage() {
           </div>
         ))}
       </div>
+
+      <section className="rounded-3xl border border-emerald-400/20 bg-[radial-gradient(circle_at_top_right,_rgba(16,185,129,0.16),_transparent_40%),linear-gradient(160deg,#0b1218,#06080d)] p-6">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-emerald-300/80">
+              <IndianRupee className="h-4 w-4" />
+              Razorpay revenue
+            </p>
+            <h2 className="mt-2 text-2xl font-semibold text-white">Money actually collected</h2>
+            <p className="mt-2 max-w-xl text-sm leading-6 text-gray-300">
+              Totals come from verified checkout payments only, so test grants and failed attempts
+              never inflate them.
+            </p>
+          </div>
+          {overview?.revenue.lastPayment && (
+            <div className="rounded-2xl border border-emerald-400/20 bg-black/30 px-4 py-3 text-right">
+              <p className="text-xs uppercase tracking-[0.18em] text-emerald-200/70">Last payment</p>
+              <p className="mt-1 text-xl font-semibold text-white">
+                {overview.revenue.lastPayment.displayAmount || 'No amount'}
+              </p>
+              <p className="mt-1 text-xs text-gray-400">
+                {overview.revenue.lastPayment.user.name || overview.revenue.lastPayment.user.email}
+              </p>
+              <p className="text-xs text-gray-500">
+                {formatRelativeTime(overview.revenue.lastPayment.createdAt)}
+              </p>
+              {overview.revenue.lastPayment.paymentId && (
+                <p className="mt-1 font-mono text-[11px] text-gray-500">
+                  {overview.revenue.lastPayment.paymentId}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="mt-6 grid gap-4 sm:grid-cols-3">
+          <div className="rounded-2xl border border-gray-800 bg-black/20 px-4 py-4">
+            <p className="text-xs uppercase tracking-[0.18em] text-gray-500">Total collected</p>
+            <p className="mt-2 text-2xl font-semibold text-white">
+              {overviewLoading || !overview ? '...' : overview.revenue.totalDisplay}
+            </p>
+            <p className="mt-1 text-xs text-gray-500">
+              {overview ? `${overview.stats.paymentCount} payment(s)` : ''}
+            </p>
+          </div>
+          <div className="rounded-2xl border border-gray-800 bg-black/20 px-4 py-4">
+            <p className="text-xs uppercase tracking-[0.18em] text-gray-500">This month</p>
+            <p className="mt-2 text-2xl font-semibold text-white">
+              {overviewLoading || !overview ? '...' : overview.revenue.thisMonthDisplay}
+            </p>
+            <p className="mt-1 text-xs text-gray-500">
+              {overview ? `${overview.stats.paymentCountThisMonth} payment(s)` : ''}
+            </p>
+          </div>
+          <div className="rounded-2xl border border-gray-800 bg-black/20 px-4 py-4">
+            <p className="text-xs uppercase tracking-[0.18em] text-gray-500">Active plan value</p>
+            <p className="mt-2 text-2xl font-semibold text-white">
+              {overviewLoading || !overview ? '...' : overview.revenue.activeRecurringDisplay}
+            </p>
+            <p className="mt-1 text-xs text-gray-500">Sum of live paid subscriptions</p>
+          </div>
+        </div>
+      </section>
 
       <div className="grid gap-6 xl:grid-cols-[1.1fr_1.4fr]">
         <section className="rounded-3xl border border-amber-400/20 bg-[radial-gradient(circle_at_top_left,_rgba(251,191,36,0.18),_transparent_35%),linear-gradient(160deg,#10131b,#06080d)] p-6">
@@ -780,6 +847,13 @@ export default function PremiumDashboardPage() {
                               ? ` · ${user.premiumDaysRemaining} day${user.premiumDaysRemaining === 1 ? '' : 's'} left`
                               : ''}
                           </p>
+                          {user.isPremium && (
+                            <p className="mt-1 text-xs text-gray-500">
+                              Paid: {user.premiumPaidAmountDisplay || 'no charge recorded'}
+                              {user.premiumProvider ? ` · ${user.premiumProvider}` : ''}
+                              {user.premiumBillingCycle ? ` · ${user.premiumBillingCycle}` : ''}
+                            </p>
+                          )}
                           <p className="mt-1 text-xs text-gray-500">
                             Agent prompts this cycle: {user.creditsUsed}
                           </p>
@@ -955,6 +1029,7 @@ export default function PremiumDashboardPage() {
               className="rounded-2xl border border-gray-800 bg-gray-900 px-3 py-2 text-sm text-white outline-none"
             >
               <option value="all">All activity</option>
+              <option value="payments">Payments only</option>
               <option value="clicked">Clicked Get Premium</option>
               <option value="failed">Failed events</option>
               <option value="success">Successful events</option>
@@ -998,6 +1073,37 @@ export default function PremiumDashboardPage() {
                   <p className="mt-1 text-xs text-gray-500">
                     {formatDateTime(event.createdAt)} · {formatRelativeTime(event.createdAt)}
                   </p>
+                  {(event.payment.paymentId || event.payment.orderId) && (
+                    <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-gray-400">
+                      {event.payment.provider && (
+                        <span className="rounded-full border border-gray-700 bg-gray-950 px-2 py-0.5">
+                          {event.payment.provider}
+                        </span>
+                      )}
+                      {event.payment.plan && (
+                        <span className="rounded-full border border-gray-700 bg-gray-950 px-2 py-0.5">
+                          {event.payment.plan}
+                          {event.payment.billingCycle ? ` · ${event.payment.billingCycle}` : ''}
+                        </span>
+                      )}
+                      {event.payment.paymentMethod && (
+                        <span className="rounded-full border border-gray-700 bg-gray-950 px-2 py-0.5">
+                          {event.payment.paymentMethod}
+                        </span>
+                      )}
+                      {event.payment.source && (
+                        <span className="rounded-full border border-gray-700 bg-gray-950 px-2 py-0.5">
+                          via {event.payment.source}
+                        </span>
+                      )}
+                      {event.payment.paymentId && (
+                        <span className="font-mono">{event.payment.paymentId}</span>
+                      )}
+                      {event.payment.orderId && (
+                        <span className="font-mono text-gray-500">{event.payment.orderId}</span>
+                      )}
+                    </div>
+                  )}
                 </div>
                 <div className="text-sm text-gray-300">
                   {event.displayAmount || 'No amount'}
@@ -1151,6 +1257,79 @@ export default function PremiumDashboardPage() {
                   <p className="mt-2 text-xl font-semibold text-white">
                     {selectedUserDetail.user.usage.premiumEventsCount}
                   </p>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-emerald-400/20 bg-black/20 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="flex items-center gap-2 text-sm font-semibold text-white">
+                    <CreditCard className="h-4 w-4 text-emerald-300" />
+                    Billing and payments
+                  </h3>
+                  <span className="rounded-full border border-gray-700 bg-gray-950 px-2.5 py-1 text-[11px] text-gray-300">
+                    {selectedUserDetail.user.billing.provider}
+                  </span>
+                </div>
+
+                <div className="mt-3 grid grid-cols-2 gap-3 text-xs">
+                  <div className="rounded-xl border border-gray-800 bg-gray-950 px-3 py-2">
+                    <p className="uppercase tracking-[0.16em] text-gray-500">Paid plan</p>
+                    <p className="mt-1 text-sm font-semibold text-white">
+                      {selectedUserDetail.user.billing.plan}
+                      {selectedUserDetail.user.billing.billingCycle
+                        ? ` · ${selectedUserDetail.user.billing.billingCycle}`
+                        : ''}
+                    </p>
+                    <p className="mt-1 text-gray-500">
+                      {selectedUserDetail.user.billing.amountDisplay || 'No charge recorded'}
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-gray-800 bg-gray-950 px-3 py-2">
+                    <p className="uppercase tracking-[0.16em] text-gray-500">Lifetime value</p>
+                    <p className="mt-1 text-sm font-semibold text-white">
+                      {selectedUserDetail.user.billing.lifetimeValueDisplay}
+                    </p>
+                    <p className="mt-1 text-gray-500">
+                      {selectedUserDetail.user.billing.paymentCount} payment(s)
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-3 space-y-2">
+                  {selectedUserDetail.user.billing.payments.length === 0 ? (
+                    <p className="rounded-xl border border-dashed border-gray-800 px-3 py-4 text-center text-xs text-gray-500">
+                      No captured payments yet.
+                    </p>
+                  ) : (
+                    selectedUserDetail.user.billing.payments.map((payment) => (
+                      <div
+                        key={payment.id}
+                        className="rounded-xl border border-gray-800 bg-gray-950 px-3 py-2 text-xs"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-semibold text-white">
+                            {payment.displayAmount || 'No amount'}
+                          </span>
+                          <span className="text-gray-500">
+                            {formatRelativeTime(payment.createdAt)}
+                          </span>
+                        </div>
+                        <p className="mt-1 text-gray-400">
+                          {[payment.provider, payment.plan, payment.billingCycle, payment.paymentMethod]
+                            .filter(Boolean)
+                            .join(' · ') || 'No payment details'}
+                        </p>
+                        {payment.paymentId && (
+                          <p className="mt-1 font-mono text-[11px] text-gray-500">
+                            {payment.paymentId}
+                          </p>
+                        )}
+                        {payment.orderId && (
+                          <p className="font-mono text-[11px] text-gray-600">{payment.orderId}</p>
+                        )}
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
 

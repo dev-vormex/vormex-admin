@@ -9,6 +9,7 @@ import {
   Image as ImageIcon,
   Loader2,
   Megaphone,
+  PanelRight,
   PauseCircle,
   PlayCircle,
   Plus,
@@ -311,14 +312,20 @@ export default function AdsDashboardPage() {
         if (draft.placements.length === 0) {
           throw new Error('Active campaigns need at least one placement.');
         }
+        const needsFeedCreative =
+          draft.placements.includes('feed') || draft.placements.includes('sidebar');
         if (
-          draft.placements.includes('feed') &&
+          needsFeedCreative &&
           !draft.feedTitle.trim() &&
           !draft.feedBody.trim() &&
           !selectedHasFeedImage
         ) {
           setEditorStep('creative');
-          throw new Error('Active feed campaigns need a title, body, or image.');
+          throw new Error(
+            draft.placements.includes('feed')
+              ? 'Active feed campaigns need a title, body, or image.'
+              : 'Active sidebar campaigns need a title, body, or image.'
+          );
         }
         if (draft.placements.includes('reels') && !selectedHasReelsVideo) {
           setEditorStep('creative');
@@ -444,6 +451,7 @@ export default function AdsDashboardPage() {
                 >
                   <option value="all">All slots</option>
                   <option value="feed">Feed</option>
+                  <option value="sidebar">Sidebar</option>
                   <option value="reels">Reels</option>
                 </select>
               </div>
@@ -570,13 +578,20 @@ export default function AdsDashboardPage() {
                   </div>
 
                   <Field label="Where should it appear?">
-                    <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="grid gap-3 sm:grid-cols-3">
                       <PlacementButton
                         active={draft.placements.includes('feed')}
                         title="Feed"
                         description="Inline card between posts"
                         icon={ImageIcon}
                         onClick={() => togglePlacement('feed')}
+                      />
+                      <PlacementButton
+                        active={draft.placements.includes('sidebar')}
+                        title="Sidebar"
+                        description="Sticky card in the feed rail (desktop)"
+                        icon={PanelRight}
+                        onClick={() => togglePlacement('sidebar')}
                       />
                       <PlacementButton
                         active={draft.placements.includes('reels')}
@@ -627,9 +642,15 @@ export default function AdsDashboardPage() {
             {editorStep === 'creative' && (
               <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
                 <div className="space-y-5">
-                  {draft.placements.includes('feed') && (
+                  {(draft.placements.includes('feed') || draft.placements.includes('sidebar')) && (
                     <section className="rounded-lg border border-gray-800 bg-gray-950/50 p-4">
-                      <CardTitle title="Feed card" />
+                      <CardTitle
+                        title={draft.placements.includes('feed') && draft.placements.includes('sidebar')
+                          ? 'Feed + sidebar card'
+                          : draft.placements.includes('sidebar')
+                            ? 'Sidebar card'
+                            : 'Feed card'}
+                      />
                       <div className="mt-4 grid gap-4 md:grid-cols-2">
                         <TextInput label="Feed title" value={draft.feedTitle} onChange={(feedTitle) => setDraft({ ...draft, feedTitle })} />
                         <FileInput label="Feed image" accept="image/*" onChange={(feedImage) => setFiles({ ...files, feedImage })} />
@@ -637,6 +658,12 @@ export default function AdsDashboardPage() {
                           <TextArea label="Feed body" value={draft.feedBody} onChange={(feedBody) => setDraft({ ...draft, feedBody })} rows={4} />
                         </div>
                       </div>
+                      {draft.placements.includes('sidebar') && (
+                        <p className="mt-3 rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-gray-400">
+                          The sidebar rail reuses this creative at a narrower width. Keep the title
+                          under ~50 characters and the body under ~120 so it does not clip.
+                        </p>
+                      )}
                     </section>
                   )}
 
@@ -660,7 +687,7 @@ export default function AdsDashboardPage() {
 
                   {!draft.placements.length && (
                     <div className="rounded-lg border border-dashed border-gray-800 p-10 text-center text-sm text-gray-500">
-                      Choose Feed or Reels in Basics to add creative.
+                      Choose Feed, Sidebar, or Reels in Basics to add creative.
                     </div>
                   )}
                 </div>
@@ -816,6 +843,22 @@ function PreviewPanel({ draft, hasFeedImage }: { draft: AdDraft; hasFeedImage: b
             <h3 className="mt-3 text-lg font-semibold text-white">{draft.feedTitle || draft.name || 'Feed title'}</h3>
             <p className="mt-1 text-sm text-gray-400">{draft.feedBody || 'Feed body preview appears here.'}</p>
           </>
+        )}
+        {draft.placements.includes('sidebar') && (
+          <div className="mt-3">
+            <p className="mb-2 text-xs uppercase tracking-wide text-gray-500">Sidebar rail</p>
+            <div className="w-[240px] rounded-xl border border-gray-800 bg-gray-900 p-3">
+              <div className="flex h-24 items-center justify-center rounded-lg bg-gray-800 text-[11px] text-gray-500">
+                {hasFeedImage ? 'Feed image selected' : 'Feed image'}
+              </div>
+              <h4 className="mt-2 line-clamp-2 text-sm font-semibold text-white">
+                {draft.feedTitle || draft.name || 'Sidebar title'}
+              </h4>
+              <p className="mt-1 line-clamp-3 text-xs text-gray-400">
+                {draft.feedBody || 'Sidebar body preview appears here.'}
+              </p>
+            </div>
+          </div>
         )}
         {draft.placements.includes('reels') && (
           <div className="mt-3 rounded-lg bg-black p-4">

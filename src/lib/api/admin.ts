@@ -94,13 +94,43 @@ export interface PremiumAdminOverview {
   };
   stats: {
     activePremiumUsers: number;
+    paidPremiumUsers: number;
     customPriceUsers: number;
     agentSelectedUsers: number;
     profileCustomizationGrantedUsers: number;
     clickCount: number;
     failureCount: number;
     successCount: number;
+    paymentCount: number;
+    paymentCountThisMonth: number;
   };
+  revenue: {
+    currency: string;
+    totalMinor: number;
+    totalDisplay: string;
+    thisMonthMinor: number;
+    thisMonthDisplay: string;
+    activeRecurringMinor: number;
+    activeRecurringDisplay: string;
+    lastPayment: (PremiumPaymentRef & {
+      createdAt: string;
+      amountMinor: number | null;
+      currency: string | null;
+      displayAmount: string | null;
+      user: { id: string; name: string; email: string };
+    }) | null;
+  };
+}
+
+/** Razorpay/Google Play references lifted out of a premium event's metadata JSON. */
+export interface PremiumPaymentRef {
+  provider: string | null;
+  orderId: string | null;
+  paymentId: string | null;
+  plan: string | null;
+  billingCycle: string | null;
+  paymentMethod: string | null;
+  source: string | null;
 }
 
 export interface PremiumAdminUser {
@@ -112,6 +142,10 @@ export interface PremiumAdminUser {
   createdAt: string;
   isPremium: boolean;
   premiumStatus: string;
+  premiumPlan: string;
+  premiumProvider: string | null;
+  premiumBillingCycle: string | null;
+  premiumPaidAmountDisplay: string | null;
   premiumStartedAt: string | null;
   premiumEndsAt: string | null;
   premiumDaysRemaining: number;
@@ -155,6 +189,31 @@ export interface PremiumAdminUserDetail {
     profileCustomizationBlocked: boolean;
     canAccessProfileCustomization: boolean;
     canCancelPremium: boolean;
+    billing: {
+      plan: string;
+      provider: string;
+      billingCycle: string | null;
+      amountMinor: number | null;
+      currency: string;
+      amountDisplay: string | null;
+      autoPayEnabled: boolean;
+      currentPeriodStart: string | null;
+      currentPeriodEnd: string | null;
+      lastProviderSyncAt: string | null;
+      googlePlayProductId: string | null;
+      paymentCount: number;
+      lifetimeValueMinor: number;
+      lifetimeValueDisplay: string;
+      payments: Array<
+        PremiumPaymentRef & {
+          id: string;
+          createdAt: string;
+          amountMinor: number | null;
+          currency: string | null;
+          displayAmount: string | null;
+        }
+      >;
+    };
     usage: {
       creditsUsedCurrentCycle: number;
       agentMessagesAllTime: number;
@@ -191,6 +250,7 @@ export interface PremiumAdminEvent {
   currency: string | null;
   displayAmount: string | null;
   createdAt: string;
+  payment: PremiumPaymentRef;
   user: {
     id: string;
     name: string;
@@ -304,7 +364,7 @@ export async function getPremiumAdminEvents(params: {
   page?: number;
   limit?: number;
   search?: string;
-  filter?: 'all' | 'clicked' | 'failed' | 'success';
+  filter?: 'all' | 'clicked' | 'failed' | 'success' | 'payments';
 } = {}): Promise<PremiumAdminEventsResponse> {
   const query = new URLSearchParams();
   if (params.page) query.set('page', params.page.toString());
@@ -755,7 +815,7 @@ export async function setUserReelsAccess(userId: string, enabled: boolean): Prom
 // ============================================
 
 export type ManagedAdStatus = 'draft' | 'active' | 'paused' | 'archived';
-export type ManagedAdPlacementName = 'feed' | 'reels';
+export type ManagedAdPlacementName = 'feed' | 'reels' | 'sidebar';
 export type ManagedAdCtaKind = 'external_url' | 'vormex_deeplink';
 
 export interface ManagedAdCampaign {
